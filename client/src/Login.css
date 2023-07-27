@@ -1,0 +1,61 @@
+/* Login.css */
+
+/* Container for the login form */
+div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Login header */
+  h2 {
+    font-size: 150px;
+    margin-bottom: 20px;
+  }
+  
+  /* Login form */
+  form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Form input fields */
+  input[type="text"],
+  input[type="password"] {
+    width: 250px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  /* Form submit button */
+  button[type="submit"],
+  button[type="button"] {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button[type="submit"]:hover,
+  button[type="button"]:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Optional: Add some margin between form elements */
+  input[type="text"],
+  input[type="password"],
+  button {
+    margin-bottom: 15px;
+  }
+  
