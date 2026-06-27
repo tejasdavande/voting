@@ -1,26 +1,32 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
-module.exports = async (req, res, next) => {
-  let tokenis = req.headers.authorization;
-  if (!tokenis) {
-    res
+const ALLOWED_ROLES = ["admin", "Admin", "ADMIN"];
+
+/**
+ * Verifies the Bearer JWT AND that the user is an admin.
+ */
+module.exports = (req, res, next) => {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  if (!token) {
+    return res
       .status(401)
-      .json({ message: "please provide valid token to access this" });
+      .json({ message: "Please provide a valid token to access this" });
   }
+
   try {
-    let token = tokenis.split(" ")[1]; //authorization should be in small//
-    const decoded = await jwt.verify(token, process.env.PRIVATEKEY);
-    const { user } = decoded;
-    const allowed_peoples = ["admin","Admin","ADMIN"];
-    if (allowed_peoples.includes(user.user_type)) {
-      next();
-    } else {
-      console.log("Access is not allowed");
-      res.status(401).json({ message: "Access is not allowed" });
+    const decoded = jwt.verify(token, process.env.PRIVATEKEY);
+    req.myValue = decoded.user;
+
+    if (req.myValue && ALLOWED_ROLES.includes(req.myValue.user_type)) {
+      return next();
     }
-    //use of this is to call next middleware and stop current request and response cycle//
+    return res.status(403).json({ message: "Access is not allowed" });
   } catch (error) {
-    return res.status(401).json({ error, message: "AUTH Failed" });
+    return res.status(401).json({ message: "Authentication failed" });
   }
 };

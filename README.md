@@ -1,66 +1,130 @@
-# Voting System README
+# 🗳️ Online Voting System
 
-## Overview
-The Voting System is a web application that allows an administrator to create candidates and monitor their vote counts. Users must sign up before voting, and once they cast their vote, they cannot vote again. If a user attempts to log in after voting, the system will indicate that they have already voted.
+A full-stack **online voting application** — a **React** frontend and a **Node.js / Express / MongoDB** backend — that lets an admin manage candidates and lets registered users cast exactly **one** vote each. The API ships with interactive **Swagger / OpenAPI** documentation.
 
-## Features
-1. **Admin Functionality**
-   - The admin can create, update, or delete candidates.
-   - The admin can view the total vote count for each candidate.
+---
 
-2. **User Registration**
-   - New users must sign up with their credentials before being allowed to vote.
+## 📌 Problem Statement
 
-3. **Voting Mechanism**
-   - Registered users can cast their vote for their preferred candidate.
-   - Once a user votes, they are restricted from voting again.
+Running a fair vote — for a club election, a classroom poll, or a community decision — requires three guarantees that are surprisingly easy to get wrong:
 
-4. **Voting Status**
-   - If a user attempts to log in after voting, the system will display a message indicating that they have already voted.
+1. **Only eligible people vote** — voters must register and authenticate.
+2. **Each person votes once** — no double voting, no ballot stuffing.
+3. **Results are trustworthy and visible** — tallies update in real time and only an admin can manage candidates.
 
-## Setup Instructions
-1. Clone the repository: `git clone https://github.com/your-username/voting-system.git`
-2. Navigate to the project directory: `cd voting-system`
-3. Install the required dependencies: `npm install`
-4. Set up the database and configure the connection.
-5. Start the application: `npm start`
-6. Access the web application through your browser: `http://localhost:3000`
+Manual or spreadsheet-based voting fails all three. **This project** delivers them with a clean separation of concerns:
 
-## Tech Stack
-- Frontend: React.js
-- Backend: Node.js, Express.js
-- Database: [Database name (e.g., MongoDB, MySQL)]
+- **Voters** sign up, log in (receiving a JWT), see the candidate list, and cast a single vote. Once they've voted, the system remembers it and blocks any further vote.
+- **Admins** create candidates and view live vote counts; candidate management is locked behind a role check.
+- **The integrity rule** ("one vote per user") is enforced server-side: casting a vote atomically increments the candidate's count and flags the user as having voted.
 
-## Database Schema
-Below is the basic schema for the database:
+---
 
-## Candidate
-- _id (ObjectID)
-- name (String)
-- votes (Number)
+## ✨ Features
 
-## User
-- _id (ObjectID)
-- username (String)
-- password (String)
-- hasVoted (Boolean)
+- 🔐 JWT authentication with bcrypt-hashed passwords
+- 🙋 Voter self-registration
+- ✅ **One vote per user**, enforced on the server
+- 👮 Admin-only candidate creation and tally viewing (role-based access)
+- 📊 Real-time vote counts
+- 🛡️ Centralised error handling with an async wrapper (no unhandled rejections)
+- 📚 Interactive API docs at `/api-docs` (OpenAPI 3.0)
+- ❤️ Health-check endpoint
 
+---
 
-## Usage
-1. Admin Interface: Access the admin panel by logging in with the admin credentials.
-2. User Registration: New users can sign up using their desired username and password.
-3. Casting a Vote: Once registered, users can cast their vote for their preferred candidate.
-4. Viewing Results: The admin can view the total vote count for each candidate in real-time.
+## 🛠️ Tech Stack
 
-## Security
-- The application uses encrypted passwords to ensure user data remains secure.
-- It employs session management to prevent unauthorized access.
-- It utilizes measures to prevent vote manipulation and ensure the integrity of the voting process.
+| Layer    | Technology                               |
+| -------- | ---------------------------------------- |
+| Frontend | React, React Router, Axios               |
+| Backend  | Node.js, Express.js                      |
+| Database | MongoDB + Mongoose                       |
+| Auth     | JSON Web Tokens (JWT), bcrypt            |
+| API docs | swagger-ui-express (OpenAPI 3)           |
 
-## Disclaimer
-This project was developed for demonstration purposes only and should not be used in production environments without appropriate security considerations and enhancements.
+---
 
-Please feel free to reach out if you have any questions or need further assistance. Happy voting!
+## 🗂️ Repository Structure
 
+```
+voting/
+├── client/    # React single-page app (Create React App)
+└── server/    # Express REST API + Swagger docs
+```
 
+---
 
+## 🚀 Getting Started
+
+You need **Node.js** and a **MongoDB** instance (local or Atlas).
+
+### 1. Backend (API)
+
+```bash
+cd server
+npm install
+cp .env.example .env        # then edit PORT / PRIVATEKEY / MONGODB_URI
+npm run dev                 # starts on http://localhost:5000
+```
+
+API docs: **<http://localhost:5000/api-docs>**
+
+### 2. Frontend (React)
+
+```bash
+cd client
+npm install
+npm start                   # starts on http://localhost:3000
+```
+
+The client talks to the API at `http://localhost:5000`.
+
+---
+
+## 📚 API Reference
+
+Full interactive docs live at **`/api-docs`**; the raw spec is at **`/openapi.json`**.
+
+| Method | Endpoint                          | Access | Description                       |
+| ------ | --------------------------------- | ------ | --------------------------------- |
+| POST   | `/user/signup`                    | Public | Register a new voter              |
+| POST   | `/user/login`                     | Public | Log in, returns a JWT             |
+| GET    | `/user/checkVotingStatus`         | Voter  | Has the user voted, and for whom  |
+| GET    | `/candidate/listofcandidate`      | Voter  | List candidates                   |
+| POST   | `/candidate/updatecandidatevotes` | Voter  | Cast a vote (once)                |
+| POST   | `/candidate/createcandidate`      | Admin  | Create a candidate                |
+| GET    | `/candidate/getcandidatevotes`    | Admin  | View vote tallies                 |
+| GET    | `/health`                         | Public | Service health check              |
+
+> Authenticated routes expect an `Authorization: Bearer <token>` header.
+> **Admin** routes require a JWT whose `user_type` is `admin`.
+
+---
+
+## 🗃️ Data Model
+
+**User**
+- `username` (String), `email` (String), `phone_no` (Number)
+- `password` (String, bcrypt-hashed)
+- `user_type` (String — `voter` / `admin`)
+- `isvoted` (Boolean) · `candidate` (ObjectId → Candidate)
+
+**Candidate**
+- `name` (String) · `count` (Number — votes received) · `candidate_id` (Number)
+
+---
+
+## 🔒 Security Notes
+
+- Passwords are hashed with bcrypt; the API never returns them.
+- Access is stateless via signed JWTs; sensitive operations are role-gated.
+- The one-vote rule is enforced server-side, not in the UI.
+
+> Built for learning/demonstration. Harden further (rate limiting, HTTPS, audit logging) before any production use.
+
+---
+
+## 📝 License
+
+ISC © Tejas Davande

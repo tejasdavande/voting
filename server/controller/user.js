@@ -1,97 +1,84 @@
-const mongoose = require("mongoose");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { ObjectId } = require("mongodb");
+const asyncHandler = require("../common/asyncHandler");
 require("dotenv").config();
 
-//signup the new user
-const createuser = async (req, res, next) => {
-  console.log(req.body);
-  try {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-      res.status(400);
-      throw new Error("All field are mandatory");
-    } else {
-      const checkuser = await User.findOne({ username: username });
-      if (checkuser) {
-        res.status(400);
-        throw new Error("User is already registed");
-      } else {
-        const hashpassword = await bcrypt.hash(password, 10);
-        console.log("my hashed password is", hashpassword);
-
-        const newuser = await User.create({
-          username,
-          email,
-          phone_no: req.body.phone_no,
-          password: hashpassword,
-          user_type: "voter",
-          isvoted: false,
-        });
-        console.log(newuser);
-      }
-    }
-    res.status(200).json({ message: "user was created" });
-  } catch (error) {
-    throw error.message;
+// POST /user/signup — register a new voter
+const createuser = asyncHandler(async (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    res.status(400);
+    throw new Error("All fields are mandatory");
   }
-};
 
-//login the existing user with token generation
-const loginuser = async (req, res, next) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      res.status(400);
-      throw new Error("Please provide username and password");
-    } else {
-      const checkuser = await User.findOne({ username: username });
-      if (checkuser && (await bcrypt.compare(password, checkuser.password))) {
-        const accesstoken = jwt.sign(
-          {
-            user: {
-              email: checkuser.email,
-              username: checkuser.username,
-              user_type: checkuser.user_type,
-              isvoted: checkuser.isvoted,
-            },
-          },
-          process.env.PRIVATEKEY,
-          { expiresIn: "7d" }
-        );
-        res.status(200).json({ accesstoken, userType: checkuser.user_type });
-      } else {
-        res.status(401);
-        throw new Error("Please provide correct username and password");
-      }
-    }
-  } catch (error) {
-    res.status(401).json({ message: error.message });
+  const existing = await User.findOne({ username });
+  if (existing) {
+    res.status(400);
+    throw new Error("User is already registered");
   }
-};
 
-const checkVotingStatus = async (req, res, next) => {
-  try {
-    const { isvoted } = await User.findOne(
-      { username: req.myValue.username },
-      { isvoted: 1 }
+  const hashpassword = await bcrypt.hash(password, 10);
+  const user = await User.create({
+    username,
+    email,
+    phone_no: req.body.phone_no,
+    password: hashpassword,
+    user_type: "voter",
+    isvoted: false,
+  });
+
+  res.status(201).json({ message: "User was created", userId: user._id });
+});
+
+// POST /user/login — authenticate and return a JWT
+const loginuser = asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400);
+    throw new Error("Please provide username and password");
+  }
+
+  const user = await User.findOne({ username });
+  if (user && (await bcrypt.compare(password, user.password))) {
+    const accesstoken = jwt.sign(
+      {
+        user: {
+          email: user.email,
+          username: user.username,
+          user_type: user.user_type,
+          isvoted: user.isvoted,
+        },
+      },
+      process.env.PRIVATEKEY,
+      { expiresIn: "7d" }
     );
-    if (isvoted) {
-      const { candidate } = await User.findOne(
-        { username: req.myValue.username, isvoted: true },
-        { candidate: 1 }
-      ).populate("candidate");
-      res.status(200).json({ isvoted, candidate });
-    } else {
-      res.status(200).json({ isvoted });
-    }
-  } catch (error) {
-    
-    throw error.message;
+    return res
+      .status(200)
+      .json({ accesstoken, userType: user.user_type });
   }
-};
+
+  res.status(401);
+  throw new Error("Please provide correct username and password");
+});
+
+// GET /user/checkVotingStatus — has the current user voted, and for whom
+const checkVotingStatus = asyncHandler(async (req, res) => {
+  const user = await User.findOne(
+    { username: req.myValue.username },
+    { isvoted: 1, candidate: 1 }
+  ).populate("candidate");
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  if (user.isvoted) {
+    return res.status(200).json({ isvoted: true, candidate: user.candidate });
+  }
+  res.status(200).json({ isvoted: false });
+});
 
 module.exports = {
   createuser,

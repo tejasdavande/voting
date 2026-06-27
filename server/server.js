@@ -1,12 +1,11 @@
-const http = require("http");  // http module in node.js
-const app = require("./app");
 require("dotenv").config();
-const server = http.createServer(app);
+const http = require("http");
+const app = require("./app");
 
 const port = process.env.PORT || 5000;
-console.log(port);
+const server = http.createServer(app);
 
-//function for server listening
 server.listen(port, () => {
-  console.log(`server is running on port  ${port}`);
+  console.log(`🚀  Server running on http://localhost:${port}`);
+  console.log(`📚  API docs at    http://localhost:${port}/api-docs`);
 });

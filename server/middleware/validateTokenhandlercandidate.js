@@ -1,23 +1,29 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const User = require("../models/user");
 
-module.exports = async (req, res, next) => {
-  let tokenis = req.headers.authorization;
-  if (!tokenis) {
-    res
+/**
+ * Verifies the Bearer JWT for candidate-listing access and attaches the decoded
+ * user to req.myValue.
+ */
+module.exports = (req, res, next) => {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  if (!token) {
+    return res
       .status(401)
-      .json({ message: "please provide valid token to access this" });
+      .json({ message: "Please provide a valid token to access this" });
   }
+
   try {
-    let token = tokenis.split(" ")[1];
-    const decoded = await jwt.verify(token, process.env.PRIVATEKEY);
-    const { user } = decoded;
-    console.log(user);
+    const decoded = jwt.verify(token, process.env.PRIVATEKEY);
+    req.myValue = decoded.user;
     next();
   } catch (error) {
-    return next(
-      new ErrorResponse("you must login to access this resources", 401)
-    );
+    return res
+      .status(401)
+      .json({ message: "You must login to access this resource" });
   }
 };
